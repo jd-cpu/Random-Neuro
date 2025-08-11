@@ -1,10 +1,13 @@
-// 서비스워커: 설치 시 기존 캐시 제거 → 새로 캐시. fetch는 네트워크 우선, 실패 시 캐시 폴백.
-const CACHE_NAME = 'quiz-cache-v2';
+const CACHE_NAME = 'quiz-cache-v4';
 const FILES = [
-  './index.html?v=5',
-  './manifest.json?v=5',
-  './icon-192.png?v=5',
-  './icon-512.png?v=5'
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './sw.js',
+  // 문제에 쓰이는 모든 이미지 추가
+  './1.png',
+  './2.png'
 ];
 
 self.addEventListener('install', evt => {
@@ -20,15 +23,17 @@ self.addEventListener('activate', evt => {
 });
 
 self.addEventListener('fetch', evt => {
+  // 쿼리스트링 제거해서 캐시 매치
+  let url = new URL(evt.request.url);
+  url.search = ''; 
+  const reqNoQuery = new Request(url, { method: evt.request.method, headers: evt.request.headers });
+
   evt.respondWith(
     fetch(evt.request).then(resp => {
-      // 성공하면 캐시에 업데이트(선택)
-      if (evt.request.method === 'GET' && resp && resp.ok) {
-        caches.open(CACHE_NAME).then(cache => {
-          try { cache.put(evt.request, resp.clone()); } catch (e) { /* 일부 요청 실패 가능 */ }
-        });
+      if (evt.request.method === 'GET' && resp.ok) {
+        caches.open(CACHE_NAME).then(cache => cache.put(reqNoQuery, resp.clone()));
       }
       return resp;
-    }).catch(() => caches.match(evt.request).then(m => m || Promise.reject('no-match')))
+    }).catch(() => caches.match(reqNoQuery).then(m => m || Promise.reject('no-match')))
   );
 });
