@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>신경과 랜덤 Post-test 퀴즈</title>
+  <link rel="manifest" href="manifest.json?v=5">
+  <meta name="theme-color" content="#4CAF50">
+  <style>
+    body { font-family: Arial, sans-serif; max-width:800px; margin:20px auto; padding:16px; text-align:center; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    h1 { margin:0; font-size:1.25rem; }
+    #status { color:#666; font-size:0.95rem; margin-top:8px; text-align:left; }
+    .question { margin:20px 0; font-size:1.15rem; white-space:pre-line; text-align:left; }
+    .answer { margin-top:10px; font-weight:600; color:#0a6; white-space:pre-line; display:none; text-align:left; }
+    .controls { margin-top:18px; }
+    button { padding:10px 14px; margin:6px; font-size:1rem; }
+    .progress-wrap { margin-top:14px; text-align:left; }
+    .progress-info { font-size:0.92rem; color:#444; margin-bottom:6px; }
+    .progress-bar { width:100%; height:12px; background:#eee; border-radius:8px; overflow:hidden; }
+    .progress-inner { height:100%; width:0%; background:#4caf50; transition: width 0.25s ease; }
+    small.note { display:block; color:#888; margin-top:8px; text-align:left; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>신경과 랜덤 Post-test 퀴즈</h1>
+    <div>
+      <button id="btnToggleMode">복습 모드로</button>
+      <button id="btnReset">초기화</button>
+    </div>
+  </header>
+
+  <div id="status" aria-live="polite">로딩 중...</div>
+
+  <div class="question" id="question">문제가 여기에 표시됩니다.</div>
+  <div class="answer" id="answer"></div>
+
+  <div class="controls" id="controls">
+    <button id="btnShowAnswer">정답 보기</button>
+    <button id="btnMarkWrong">오답 저장</button>
+    <button id="btnPrev">이전 문제</button>
+    <button id="btnNext">다음 문제</button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-info" id="progressInfo">진행: 0 / 0 (남음: 0)</div>
+    <div class="progress-bar"><div id="progressInner" class="progress-inner"></div></div>
+    <small class="note">※ 정답 보기 버튼은 정답만 보여줍니다. 다음 문제로 이동하려면 '다음 문제' 버튼을 누르세요.</small>
+  </div>
+
+  <script>
+  // ========================
+  // 문제 데이터: { q: "...", a: "..." } 형식으로 유지하세요.
+  // 전체 데이터를 넣을 곳입니다. (예시로 몇 개만 넣어뒀습니다.)
+  // ========================
+  const questions = [
+    { q: "도파민을 주된 신경전달물질로 사용하는 4개의 신경 경로를 기술하시오.", a: "Nigrostriatal, mesocortical, mesolimbic, tuberoinfundibular pathway" },
+    { q: "Piaget의 인지 발달 4단계를 쓰고 해당하는 나이와 특징을 약술하시오.", a: "감각운동기(출생-2세)\n전조작기(2-7세)\n구체적 조작기(7-12세)\n형식적 조작기(12세-)" },
+    { q: "프로이트의 이드, 자아, 초자아의 기능을 간략히 쓰시오.", a: "이드: 본능적 욕구\n자아: 현실원칙\n초자아: 양심/이상" }
+    // 실제로는 여기 전체 목록을 { q: "...", a: "..." } 형태로 채워 넣으세요.
+  ];
+
+  // 로컬스토리지 키
+  const KEY = {
+    WRONG: 'quiz_wrong_v1',
+    MODE: 'quiz_mode_v1',
+    NORMAL_ORDER: 'quiz_normal_order_v1',
+    NORMAL_IDX: 'quiz_normal_idx_v1',
+    REVIEW_ORDER: 'quiz_review_order_v1',
+    REVIEW_IDX: 'quiz_review_idx_v1'
+  };
+
+  // 상태 변수
+  let wrongList = JSON.parse(localStorage.getItem(KEY.WRONG) || '[]'); // [{q,a},...]
+  let mode = localStorage.getItem(KEY.MODE) || 'normal'; // 'normal' or 'review'
+
+  // normalMode: orderNormal = array of indices into questions
+  // reviewMode: orderReview = array of indices into wrongList
+  let orderNormal = JSON.parse(localStorage.getItem(KEY.NORMAL_ORDER) || 'null');
+  let idxNormal = parseInt(localStorage.getItem(KEY.NORMAL_IDX) || '0', 10);
+  let orderReview = JSON.parse(localStorage.getItem(KEY.REVIEW_ORDER) || 'null');
+  let idxReview = parseInt(localStorage.getItem(KEY.REVIEW_IDX) || '0', 10);
+
+  // DOM
+  const elStatus = document.getElementById('status');
+  const elQuestion = document.getElementById('question');
+  const elAnswer = document.getElementById('answer');
+  const elBtnShow = document.getElementById('btnShowAnswer');
+  const elBtnWrong = document.getElementById('btnMarkWrong');
+  const elBtnNext = document.getElementById('btnNext');
+  const elBtnPrev = document.getElementById('btnPrev');
+  const elBtnToggle = document.getElementById('btnToggleMode');
+  const elBtnReset = document.getElementById('btnReset');
+  const elProgressInfo = document.getElementById('progressInfo');
+  const elProgressInner = document.getElementById('progressInner');
+
+  // 유틸: Fisher-Yates
+  function shuffledArray(n) {
+    const arr = Array.from({length:n}, (_,i)=>i);
+    for (let i = arr.length -1; i>0; i--) {
+      const j = Math.floor(Math.random() * (i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // 저장/복원
+  function saveAll() {
+    localStorage.setItem(KEY.WRONG, JSON.stringify(wrongList));
+    localStorage.setItem(KEY.MODE, mode);
+    if (orderNormal) localStorage.setItem(KEY.NORMAL_ORDER, JSON.stringify(orderNormal));
+    localStorage.setItem(KEY.NORMAL_IDX, idxNormal);
+    if (orderReview) localStorage.setItem(KEY.REVIEW_ORDER, JSON.stringify(orderReview));
+    localStorage.setItem(KEY.REVIEW_IDX, idxReview);
+  }
+
+  function clearAll() {
+    localStorage.removeItem(KEY.WRONG);
+    localStorage.removeItem(KEY.MODE);
+    localStorage.removeItem(KEY.NORMAL_ORDER);
+    localStorage.removeItem(KEY.NORMAL_IDX);
+    localStorage.removeItem(KEY.REVIEW_ORDER);
+    localStorage.removeItem(KEY.REVIEW_IDX);
+    wrongList = [];
+    mode = 'normal';
+    orderNormal = null; orderReview = null;
+    idxNormal = 0; idxReview = 0;
+  }
+
+  // 초기화: order 생성(페이지 로드 시 한 번만)
+  function ensureOrders() {
+    // normal
+    if (!orderNormal || !Array.isArray(orderNormal) || orderNormal.length !== questions.length) {
+      orderNormal = shuffledArray(questions.length);
+      // 보존된 idxNormal이 범위 밖이면 리셋
+      idxNormal = Math.min(Math.max(0, idxNormal), Math.max(0, orderNormal.length - 1));
+    }
+    // review (wrongList 기반)
+    if (!orderReview || !Array.isArray(orderReview) || orderReview.length !== wrongList.length) {
+      orderReview = shuffledArray(wrongList.length);
+      idxReview = Math.min(Math.max(0, idxReview), Math.max(0, orderReview.length - 1));
+    } else {
+      // 보존된 idxReview가 범위를 벗어나면 보정
+      idxReview = Math.min(Math.max(0, idxReview), Math.max(0, orderReview.length - 1));
+    }
+  }
+
+  // 현재 리스트/인덱스 반환
+  function currentListAndIndex() {
+    if (mode === 'normal') {
+      return { listType: 'normal', order: orderNormal, idx: idxNormal, total: orderNormal.length };
+    } else {
+      return { listType: 'review', order: orderReview, idx: idxReview, total: orderReview.length };
+    }
+  }
+
+  // 현재 문제 객체 반환 (or null)
+  function getCurrentQuestion() {
+    const info = currentListAndIndex();
+    if (info.total === 0) return null;
+    if (info.listType === 'normal') {
+      const qIndex = info.order[info.idx];
+      return questions[qIndex];
+    } else {
+      const rIndex = info.order[info.idx];
+      return wrongList[rIndex];
+    }
+  }
+
+  // 렌더
+  function render() {
+    ensureOrders();
+    saveAll();
+    const info = currentListAndIndex();
+
+    if (info.total === 0) {
+      elStatus.innerText = mode === 'normal' ? '문제가 비어있습니다. questions 배열을 채워주세요.' : '복습할 문제가 없습니다.';
+      elQuestion.innerText = mode === 'normal' ? '문제가 없습니다.' : '복습할 문제가 없습니다.';
+      elAnswer.style.display = 'none';
+      updateProgressBar(0, info.total, 0);
+      updateToggleText();
+      return;
+    }
+
+    // 범위를 벗어나면 완료 상태
+    if (info.idx >= info.total) {
+      elQuestion.innerText = '모든 문제가 완료되었습니다.';
+      elAnswer.style.display = 'none';
+      updateProgressBar(info.total, info.total, 100);
+      updateToggleText();
+      return;
+    }
+
+    const cur = getCurrentQuestion();
+    if (!cur) {
+      elQuestion.innerText = '문제가 없습니다.';
+      elAnswer.style.display = 'none';
+      updateProgressBar(info.idx, info.total, Math.round((info.idx / Math.max(1, info.total)) * 100));
+      updateToggleText();
+      return;
+    }
+
+    elQuestion.innerText = cur.q;
+    elAnswer.innerText = cur.a;
+    elAnswer.style.display = 'none';
+
+    // 상태 text
+    const currentNumber = info.idx + 1;
+    const remaining = Math.max(0, info.total - info.idx - 1);
+    elStatus.innerText = `모드: ${mode === 'normal' ? '일반' : '복습'}  •  ${currentNumber} / ${info.total}  (남음: ${remaining})`;
+    updateProgressBar(info.idx, info.total, Math.round((info.idx / Math.max(1, info.total)) * 100));
+    updateToggleText();
+  }
+
+  function updateProgressBar(idx, total, percent) {
+    elProgressInfo.innerText = `진행: ${idx}/${total}  (${percent}%)`;
+    elProgressInner.style.width = total === 0 ? '0%' : `${percent}%`;
+  }
+
+  function updateToggleText() {
+    elBtnToggle.textContent = mode === 'normal' ? `복습 모드 (${wrongList.length})` : '일반 모드로';
+  }
+
+  // 오답 목록에서 (q,a)로 항목 제거 (발견되면 true 반환)
+  function removeFromWrongListByQA(q, a) {
+    const i = wrongList.findIndex(it => it.q === q && it.a === a);
+    if (i !== -1) {
+      wrongList.splice(i, 1);
+      // 리뷰 순서 재생성 및 인덱스 보정
+      orderReview = shuffledArray(wrongList.length);
+      idxReview = Math.min(idxReview, Math.max(0, orderReview.length - 1));
+      // 만약 복습 모드였고 오답이 이제 비어있다면 자동으로 일반 모드로 전환
+      if (mode === 'review' && wrongList.length === 0) {
+        mode = 'normal';
+        localStorage.setItem(KEY.MODE, mode);
+      }
+      saveAll();
+      updateToggleText();
+      return true;
+    }
+    return false;
+  }
+
+  // 버튼 actions
+  function showAnswer() {
+    const cur = getCurrentQuestion();
+    if (!cur) return;
+    elAnswer.style.display = 'block';
+    // 정답 보기만 — 자동으로 다음 문제로 가지 않습니다
+  }
+
+  function markWrong() {
+    const info = currentListAndIndex();
+    if (info.total === 0 || info.idx >= info.total) return;
+    const cur = getCurrentQuestion();
+    if (!cur) return;
+    // 중복 방지 (q+a 기준)
+    if (!wrongList.some(it => it.q === cur.q && it.a === cur.a)) {
+      wrongList.push({ q: cur.q, a: cur.a });
+      // whenever wrongList changes, rebuild review order so indices align; keep current review idx if in review mode
+      orderReview = shuffledArray(wrongList.length);
+      idxReview = Math.min(idxReview, orderReview.length - 1);
+      saveAll();
+      updateToggleText();
+    }
+    // do NOT move automatically (user can press 다음)
+  }
+
+  function nextQuestion() {
+    const info = currentListAndIndex();
+    if (info.total === 0) { render(); return; }
+
+    if (info.listType === 'normal') {
+      // normal 모드: 다음으로
+      idxNormal++;
+      if (idxNormal > info.total) idxNormal = info.total;
+    } else {
+      // review 모드: 다음으로
+      idxReview++;
+      if (idxReview > info.total) idxReview = info.total;
+    }
+    saveAll();
+    render();
+  }
+
+  // 이전 문제:
+  // - 일반 모드: 인덱스 감소, 그리고 "이전 문제"가 오답 목록에 있으면 오답에서 제거
+  // - 복습 모드: 인덱스만 감소 (오답 목록에는 손대지 않음)
+  function prevQuestion() {
+    const info = currentListAndIndex();
+    if (info.total === 0) { render(); return; }
+
+    if (info.listType === 'normal') {
+      if (idxNormal <= 0) {
+        // 첫 문제이면 아무 동작 안 함
+        return;
+      }
+      // 한 칸 뒤로
+      idxNormal = Math.max(0, idxNormal - 1);
+
+      // 이전 문제 객체 (questions 기준)
+      const qIndex = orderNormal[idxNormal];
+      const prev = questions[qIndex];
+      if (prev) {
+        // 이전 문제가 오답 리스트에 들어있다면 제거 (요구사항: 일반 모드에서는 오답에서 제거)
+        removeFromWrongListByQA(prev.q, prev.a);
+      }
+    } else { // review 모드
+      if (idxReview <= 0) {
+        return;
+      }
+      // 단순히 인덱스만 감소 — 복습 모드에서 이전 시 오답 삭제하지 않음
+      idxReview = Math.max(0, idxReview - 1);
+      // (주의) wrongList/ orderReview가 외부에서 변경되면 ensureOrders에서 정리됨
+    }
+
+    saveAll();
+    render();
+  }
+
+  function toggleMode() {
+    // switch mode, reset index for that mode (but keep saved progress)
+    mode = (mode === 'normal') ? 'review' : 'normal';
+    localStorage.setItem(KEY.MODE, mode);
+    // if switching to review and review list empty => notify and stay
+    if (mode === 'review' && wrongList.length === 0) {
+      alert('복습할 오답이 없습니다.');
+      mode = 'normal';
+      localStorage.setItem(KEY.MODE, mode);
+      return;
+    }
+    // ensure orders exist for new mode
+    ensureOrders();
+    render();
+  }
+
+  function resetProgress() {
+    if (!confirm('진행 상황(섞인 순서 및 인덱스)과 오답 목록을 초기화할까요?')) return;
+    clearAll();
+    ensureOrders();
+    saveAll();
+    render();
+  }
+
+  // 이벤트 binding
+  elBtnShow.addEventListener('click', showAnswer);
+  elBtnWrong.addEventListener('click', markWrong);
+  elBtnNext.addEventListener('click', nextQuestion);
+  elBtnPrev.addEventListener('click', prevQuestion);
+  elBtnToggle.addEventListener('click', toggleMode);
+  elBtnReset.addEventListener('click', resetProgress);
+
+  // 서비스워커 등록 helper
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js?v=5').catch(e => {
+        console.warn('ServiceWorker 등록 실패:', e);
+      });
+    });
+  }
+
+  // start
+  ensureOrders();
+  render();
+  </script>
+</body>
+</html>
