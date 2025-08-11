@@ -1,5 +1,5 @@
 // 서비스워커: 설치 시 기존 캐시 제거 → 새로 캐시. fetch는 네트워크 우선, 실패 시 캐시 폴백.
-const CACHE_NAME = 'quiz-cache-v1';
+const CACHE_NAME = 'quiz-cache-v2';
 const FILES = [
   './index.html?v=5',
   './manifest.json?v=5',
