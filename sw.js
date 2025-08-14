@@ -1,13 +1,18 @@
-const CACHE_NAME = 'quiz-cache-v6';
+const CACHE_NAME = 'quiz-cache-v7';
 const FILES = [
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
   './sw.js',
-  // 문제에 쓰이는 모든 이미지 추가
+
+  // 문제에서 쓰이는 모든 이미지
   './1.png',
-  './2.png'
+  './2.png',
+  './3.png',
+  './4.png',
+  './5.png',
+  './6.png'
 ];
 
 self.addEventListener('install', evt => {
@@ -25,7 +30,7 @@ self.addEventListener('activate', evt => {
 self.addEventListener('fetch', evt => {
   // 쿼리스트링 제거해서 캐시 매치
   let url = new URL(evt.request.url);
-  url.search = ''; 
+  url.search = '';
   const reqNoQuery = new Request(url, { method: evt.request.method, headers: evt.request.headers });
 
   evt.respondWith(
