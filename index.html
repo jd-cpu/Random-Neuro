@@ -163,21 +163,23 @@
 
   function ensureOrders(skipShuffle=false){
     // 일반 모드 문제 순서
-    if(!orderNormal || !Array.isArray(orderNormal) || orderNormal.length !== questions.length){
-      orderNormal = shuffledArray(questions.length);
-      idxNormal = Math.min(Math.max(0, idxNormal), Math.max(0, orderNormal.length-1));
+    if(!orderNormal || orderNormal.length !== questions.length){
+        orderNormal = shuffledArray(questions.length);
     }
 
     // 복습 모드 문제 순서
-    if(!orderReview || !Array.isArray(orderReview) || orderReview.length !== wrongList.length){
-      if(!skipShuffle){  // ← true면 섞지 않음
-          orderReview = shuffledArray(wrongList.length);
-      }
-      idxReview = Math.min(Math.max(0, idxReview), Math.max(0, wrongList.length-1));
-    } else {
-      idxReview = Math.min(Math.max(0, idxReview), Math.max(0, wrongList.length-1));
+    if(!orderReview || orderReview.length !== wrongList.length){
+        if(!skipShuffle){          // ← true면 섞지 않음
+            orderReview = shuffledArray(wrongList.length);
+        }
+        // else 기존 orderReview 유지
     }
+
+    // 인덱스 범위 조정
+    idxNormal = Math.min(Math.max(0, idxNormal), Math.max(0, orderNormal.length-1));
+    idxReview = Math.min(Math.max(0, idxReview), Math.max(0, wrongList.length-1));
 }
+
 
   function currentListAndIndex(){
     if(mode==='normal'){
@@ -206,8 +208,8 @@
     elBtnToggle.textContent = mode==='normal'?`복습 모드 (${wrongList.length})`:'일반 모드로';
   }
 
-  function render(){
-    ensureOrders();
+  function render(skipShuffle=false){
+    ensureOrders(skipShuffle);
     saveAll();
     const info=currentListAndIndex();
 
@@ -282,12 +284,13 @@
     const cur = getCurrentQuestion();
     if(!cur) return;
     if(removeFromWrongListByQA(cur.q,cur.a)){
-        ensureOrders(true);  // ← 여기서 셔플 방지
+        ensureOrders(true);                  // ← 섞지 않도록 플래그 전달
         if(idxReview >= wrongList.length) idxReview = Math.max(0, wrongList.length-1);
         saveAll();
-        render();
+        render(true);                        // render도 플래그 전달
     }
 }
+
 
   function nextQuestion(){
     const info=currentListAndIndex();
