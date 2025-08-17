@@ -283,11 +283,18 @@
   function removeWrong(){
     const cur = getCurrentQuestion();
     if(!cur) return;
-    if(removeFromWrongListByQA(cur.q,cur.a)){
-        ensureOrders(true);                  // ← 섞지 않도록 플래그 전달
-        if(idxReview >= wrongList.length) idxReview = Math.max(0, wrongList.length-1);
+
+    if(removeFromWrongListByQA(cur.q, cur.a)){
+        // 남은 문제 수 확인 후 idxReview 조정
+        if(idxReview >= wrongList.length){
+            idxReview = Math.max(0, wrongList.length - 1);
+        }
+
+        ensureOrders(true);   // 섞지 않도록
         saveAll();
-        render(true);                        // render도 플래그 전달
+
+        // 다음 문제 자동 표시
+        render(true);
     }
 }
 
@@ -324,27 +331,14 @@
 
   function removeFromWrongListByQA(q,a){
     const i = wrongList.findIndex(it => it.q === q && it.a === a);
-    if(i !== -1){
-        wrongList.splice(i, 1);  // 오답 제거
+    if(i!==-1){
+  wrongList.splice(i,1);
+  // orderReview 셔플 제거 → 기존 순서 유지
+  saveAll();
+  updateToggleText();
+  return true;
+}
 
-        // ↓ 여기서 셔플하지 않음 → 기존 순서 유지
-        // orderReview = shuffledArray(wrongList.length);
-
-        // 현재 인덱스 조정
-        if(idxReview >= wrongList.length){
-            idxReview = Math.max(0, wrongList.length - 1);
-        }
-
-        // 오답이 다 사라지면 일반 모드로
-        if(mode === 'review' && wrongList.length === 0){
-            mode = 'normal';
-            localStorage.setItem(KEY.MODE, mode);
-        }
-
-        saveAll();
-        updateToggleText();
-        return true;
-    }
     return false;
 }
 
