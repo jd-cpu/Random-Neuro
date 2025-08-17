@@ -162,17 +162,27 @@
   }
 
   function ensureOrders(skipShuffle=false){
-    // 일반 모드 문제 순서
+    // 일반 모드 순서
     if(!orderNormal || orderNormal.length !== questions.length){
         orderNormal = shuffledArray(questions.length);
     }
 
-    // 복습 모드 문제 순서
-    if(!orderReview || orderReview.length !== wrongList.length){
-        if(!skipShuffle){          // ← true면 섞지 않음
-            orderReview = shuffledArray(wrongList.length);
+    // 복습 모드 순서
+    if(!orderReview){
+        orderReview = [];
+    }
+
+    // 남은 오답 문제 중 새로 추가된 인덱스만 추가
+    if(wrongList.length > orderReview.length){
+        const newIndices = [];
+        for(let i = orderReview.length; i < wrongList.length; i++){
+            newIndices.push(i);
         }
-        // else 기존 orderReview 유지
+        if(!skipShuffle){
+            // 새로 추가된 문제만 섞음
+            newIndices.sort(() => Math.random() - 0.5);
+        }
+        orderReview = orderReview.concat(newIndices);
     }
 
     // 인덱스 범위 조정
@@ -331,12 +341,12 @@
 
   function removeFromWrongListByQA(q,a){
     const i = wrongList.findIndex(it => it.q === q && it.a === a);
-    if(i!==-1){
-  wrongList.splice(i,1);
-  // orderReview 셔플 제거 → 기존 순서 유지
-  saveAll();
-  updateToggleText();
-  return true;
+    if(i !== -1){
+    wrongList.splice(i, 1);
+    // orderReview는 건드리지 않음 → 순서 유지
+    saveAll();
+    updateToggleText();
+    return true;
 }
 
     return false;
