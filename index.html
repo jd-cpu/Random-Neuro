@@ -163,9 +163,11 @@
 
   function ensureOrders(skipShuffle=false){
     // 일반 모드 순서
-    if(!orderNormal || orderNormal.length !== questions.length){
-        orderNormal = shuffledArray(questions.length);
-    }
+    if(!orderReview || orderReview.length !== wrongList.length){
+    // orderReview 초기화는 새 배열 생성만, 섞지 않음
+    orderReview = Array.from({length: wrongList.length}, (_,i)=>i);
+}
+
 
     // 복습 모드 순서
     if(!orderReview){
@@ -294,10 +296,10 @@
     const cur = getCurrentQuestion();
     if(!cur) return;
     if(removeFromWrongListByQA(cur.q, cur.a)){
-        // idxReview 보정: 현재 위치가 남은 문제 개수보다 크면 마지막으로 이동
-        idxReview = Math.min(idxReview, wrongList.length - 1);
-        render(true);  // render 시 순서 섞지 않음
-    }
+    // idxReview는 이미 보정됨
+    render();  // render 내부에서 순서 섞지 않음
+}
+
 }
 
 
@@ -335,11 +337,11 @@
     const i = wrongList.findIndex(it => it.q === q && it.a === a);
     if(i!==-1){
         wrongList.splice(i,1);          // 오답 제거
-        // orderReview는 건드리지 않음 → 순서 유지
-        if(mode==='review' && wrongList.length===0){
-            mode='normal';
-            localStorage.setItem(KEY.MODE, mode);
-        }
+// orderReview는 건드리지 않음 → 순서 유지
+if(idxReview >= wrongList.length){
+    idxReview = Math.max(0, wrongList.length - 1);  // 마지막 문제 보정
+}
+
         saveAll();
         updateToggleText();
         return true;
