@@ -293,18 +293,15 @@
   function removeWrong(){
     const cur = getCurrentQuestion();
     if(!cur) return;
-
     if(removeFromWrongListByQA(cur.q, cur.a)){
-        // 남은 문제 수 확인 후 idxReview 조정
+        // 남은 문제가 있으면 바로 다음 문제로 이동
         if(idxReview >= wrongList.length){
             idxReview = Math.max(0, wrongList.length - 1);
         }
-
-        ensureOrders(true);   // 섞지 않도록
+        // skipShuffle=true → 순서 유지
+        ensureOrders(true);
         saveAll();
-
-        // 다음 문제 자동 표시
-        render(true);
+        render(true);  // 다음 문제 바로 표시
     }
 }
 
