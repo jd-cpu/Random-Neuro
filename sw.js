@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quiz-cache-v21';
+const CACHE_NAME = 'quiz-cache-v22';
 const FILES = [
   './index.html',
   './manifest.json',
