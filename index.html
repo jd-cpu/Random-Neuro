@@ -109,26 +109,26 @@
     REVIEW_IDX: 'quiz_review_idx_v1'
   };
 
-  let wrongList = JSON.parse(localStorage.getItem(KEY.WRONG) || '[]');
-  let mode = localStorage.getItem(KEY.MODE) || 'normal';
+  let wrongList   = JSON.parse(localStorage.getItem(KEY.WRONG) || '[]');
+  let mode        = localStorage.getItem(KEY.MODE) || 'normal';
   let orderNormal = JSON.parse(localStorage.getItem(KEY.NORMAL_ORDER) || 'null');
-  let idxNormal = parseInt(localStorage.getItem(KEY.NORMAL_IDX) || '0', 10);
+  let idxNormal   = parseInt(localStorage.getItem(KEY.NORMAL_IDX) || '0', 10);
   let orderReview = JSON.parse(localStorage.getItem(KEY.REVIEW_ORDER) || 'null');
-  let idxReview = parseInt(localStorage.getItem(KEY.REVIEW_IDX) || '0', 10);
+  let idxReview   = parseInt(localStorage.getItem(KEY.REVIEW_IDX) || '0', 10);
 
-  const elStatus = document.getElementById('status');
-  const elQuestion = document.getElementById('question');
-  const elAnswer = document.getElementById('answer');
-  const elBtnShow = document.getElementById('btnShowAnswer');
-  const elBtnWrong = document.getElementById('btnMarkWrong');
-  const elBtnNext = document.getElementById('btnNext');
-  const elBtnPrev = document.getElementById('btnPrev');
-  const elBtnToggle = document.getElementById('btnToggleMode');
-  const elBtnReset = document.getElementById('btnReset');
-  const elProgressInfo = document.getElementById('progressInfo');
-  const elProgressInner = document.getElementById('progressInner');
-  const elBtnRestartReview = document.getElementById('btnRestartReview');
-  const elBtnRemoveWrong = document.getElementById('btnRemoveWrong');
+  const elStatus          = document.getElementById('status');
+  const elQuestion        = document.getElementById('question');
+  const elAnswer          = document.getElementById('answer');
+  const elBtnShow         = document.getElementById('btnShowAnswer');
+  const elBtnWrong        = document.getElementById('btnMarkWrong');
+  const elBtnNext         = document.getElementById('btnNext');
+  const elBtnPrev         = document.getElementById('btnPrev');
+  const elBtnToggle       = document.getElementById('btnToggleMode');
+  const elBtnReset        = document.getElementById('btnReset');
+  const elProgressInfo    = document.getElementById('progressInfo');
+  const elProgressInner   = document.getElementById('progressInner');
+  const elBtnRestartReview= document.getElementById('btnRestartReview');
+  const elBtnRemoveWrong  = document.getElementById('btnRemoveWrong');
 
   function shuffledArray(n){
     const arr = Array.from({length:n}, (_,i)=>i);
@@ -143,9 +143,9 @@
     localStorage.setItem(KEY.WRONG, JSON.stringify(wrongList));
     localStorage.setItem(KEY.MODE, mode);
     if(orderNormal) localStorage.setItem(KEY.NORMAL_ORDER, JSON.stringify(orderNormal));
-    localStorage.setItem(KEY.NORMAL_IDX, idxNormal);
+    localStorage.setItem(KEY.NORMAL_IDX, String(idxNormal));
     if(orderReview) localStorage.setItem(KEY.REVIEW_ORDER, JSON.stringify(orderReview));
-    localStorage.setItem(KEY.REVIEW_IDX, idxReview);
+    localStorage.setItem(KEY.REVIEW_IDX, String(idxReview));
   }
 
   function clearAll(){
@@ -162,51 +162,23 @@
   }
 
   function ensureOrders(skipShuffle=false){
-  // 일반 모드 순서
-  if(!orderNormal || orderNormal.length !== questions.length){
-    orderNormal = Array.from({length: questions.length}, (_,i)=>i);
-    if(!skipShuffle){
-      orderNormal.sort(() => Math.random() - 0.5);
-    }
-  }
-
-  // 복습 모드 순서
-  if(!orderReview || orderReview.length !== wrongList.length){
-    // orderReview 초기화는 새 배열 생성만, 섞지 않음
-    orderReview = Array.from({length: wrongList.length}, (_,i)=>i);
-  }
-
-  // 인덱스 보정
-  idxNormal = Math.min(Math.max(0, idxNormal), Math.max(0, orderNormal.length-1));
-  idxReview = Math.min(Math.max(0, idxReview), Math.max(0, wrongList.length-1));
-}
-
-
-
-
-    // 복습 모드 순서
-    if(!orderReview){
-        orderReview = [];
+    // ✅ 일반 모드 순서 보장 (기본: 처음 한 번 섞고 고정)
+    if(!Array.isArray(orderNormal) || orderNormal.length !== questions.length){
+      orderNormal = Array.from({length: questions.length}, (_,i)=>i);
+      if(!skipShuffle){
+        orderNormal.sort(()=>Math.random()-0.5);
+      }
     }
 
-    // 남은 오답 문제 중 새로 추가된 인덱스만 추가
-    if(wrongList.length > orderReview.length){
-        const newIndices = [];
-        for(let i = orderReview.length; i < wrongList.length; i++){
-            newIndices.push(i);
-        }
-        if(!skipShuffle){
-            // 새로 추가된 문제만 섞음
-            newIndices.sort(() => Math.random() - 0.5);
-        }
-        orderReview = orderReview.concat(newIndices);
+    // ✅ 복습 모드 순서 보장
+    if(!Array.isArray(orderReview) || orderReview.length !== wrongList.length){
+      orderReview = Array.from({length: wrongList.length}, (_,i)=>i);
     }
 
-    // 인덱스 범위 조정
+    // ✅ 인덱스 보정
     idxNormal = Math.min(Math.max(0, idxNormal), Math.max(0, orderNormal.length-1));
     idxReview = Math.min(Math.max(0, idxReview), Math.max(0, wrongList.length-1));
-}
-
+  }
 
   function currentListAndIndex(){
     if(mode==='normal'){
@@ -250,15 +222,15 @@
     }
 
     if(info.total===0){
-      elStatus.innerText = mode==='normal'?'문제가 비어있습니다. questions 배열을 채워주세요.':'복습할 문제가 없습니다.';
-      elQuestion.innerText = mode==='normal'?'문제가 없습니다.':'복습할 문제가 없습니다.';
+      elStatus.innerText = mode==='normal'? '문제가 비어있습니다. questions 배열을 채워주세요.' : '복습할 문제가 없습니다.';
+      elQuestion.innerText = mode==='normal'? '문제가 없습니다.' : '복습할 문제가 없습니다.';
       elAnswer.style.display='none';
       updateProgressBar(0,info.total,0);
       updateToggleText();
       return;
     }
 
-    // 완료 상태 반영 (추가: 복습 모드도 진행률 끝까지)
+    // 완료 상태
     if(info.idx >= info.total){
       elQuestion.innerText='모든 문제가 완료되었습니다.';
       elAnswer.style.display='none';
@@ -300,7 +272,7 @@
     if(!cur) return;
     if(!wrongList.some(it=>it.q===cur.q && it.a===cur.a)){
       wrongList.push({q:cur.q,a:cur.a});
-      orderReview=shuffledArray(wrongList.length);
+      orderReview = Array.from({length: wrongList.length}, (_,i)=>i); // 새로 고정
       idxReview=Math.min(idxReview, orderReview.length-1);
       saveAll();
       updateToggleText();
@@ -311,12 +283,9 @@
     const cur = getCurrentQuestion();
     if(!cur) return;
     if(removeFromWrongListByQA(cur.q, cur.a)){
-    // idxReview는 이미 보정됨
-    render();  // render 내부에서 순서 섞지 않음
-}
-
-}
-
+      render();
+    }
+  }
 
   function nextQuestion(){
     const info=currentListAndIndex();
@@ -351,19 +320,18 @@
   function removeFromWrongListByQA(q,a){
     const i = wrongList.findIndex(it => it.q === q && it.a === a);
     if(i!==-1){
-        wrongList.splice(i,1);          // 오답 제거
-// orderReview는 건드리지 않음 → 순서 유지
-if(idxReview >= wrongList.length){
-    idxReview = Math.max(0, wrongList.length - 1);  // 마지막 문제 보정
-}
-
-        saveAll();
-        updateToggleText();
-        return true;
+      wrongList.splice(i,1);
+      // 순서 재구성 및 인덱스 보정
+      orderReview = Array.from({length: wrongList.length}, (_,k)=>k);
+      if(idxReview >= wrongList.length){
+        idxReview = Math.max(0, wrongList.length - 1);
+      }
+      saveAll();
+      updateToggleText();
+      return true;
     }
     return false;
-}
-
+  }
 
   function restartReview(){
     idxReview=0;
@@ -402,7 +370,11 @@ if(idxReview >= wrongList.length){
   elBtnRemoveWrong.addEventListener('click', removeWrong);
 
   if('serviceWorker' in navigator){
-    window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js?v=5').catch(e=>{console.warn('ServiceWorker 등록 실패:',e);});});
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js?v=5').catch(e=>{
+        console.warn('ServiceWorker 등록 실패:', e);
+      });
+    });
   }
 
   ensureOrders();
