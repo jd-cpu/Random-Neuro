@@ -162,11 +162,24 @@
   }
 
   function ensureOrders(skipShuffle=false){
-    // 일반 모드 순서
+    // ✅ 일반 모드 순서 초기화 (빠져 있어서 에러났던 부분)
+    if(!orderNormal || orderNormal.length !== questions.length){
+        orderNormal = Array.from({length: questions.length}, (_,i)=>i);
+        if(!skipShuffle){
+            orderNormal.sort(() => Math.random() - 0.5);  // 원하면 지워도 됨 (섞지 않게 하려면)
+        }
+    }
+
+    // 복습 모드 순서
     if(!orderReview || orderReview.length !== wrongList.length){
-    // orderReview 초기화는 새 배열 생성만, 섞지 않음
-    orderReview = Array.from({length: wrongList.length}, (_,i)=>i);
+        orderReview = Array.from({length: wrongList.length}, (_,i)=>i);
+    }
+
+    // 인덱스 범위 보정
+    idxNormal = Math.min(Math.max(0, idxNormal), Math.max(0, orderNormal.length-1));
+    idxReview = Math.min(Math.max(0, idxReview), Math.max(0, wrongList.length-1));
 }
+
 
 
     // 복습 모드 순서
